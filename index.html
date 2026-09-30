@@ -44,7 +44,6 @@
       position: relative;
     }
 
-    /* Angoli del mirino */
     .corner {
       position: absolute;
       width: 30px;
@@ -52,26 +51,10 @@
       border-color: #ffffff;
       border-style: solid;
     }
-    .top-left {
-      top: 0;
-      left: 0;
-      border-width: 5px 0 0 5px;
-    }
-    .top-right {
-      top: 0;
-      right: 0;
-      border-width: 5px 5px 0 0;
-    }
-    .bottom-left {
-      bottom: 0;
-      left: 0;
-      border-width: 0 0 5px 5px;
-    }
-    .bottom-right {
-      bottom: 0;
-      right: 0;
-      border-width: 0 5px 5px 0;
-    }
+    .top-left { top: 0; left: 0; border-width: 5px 0 0 5px; }
+    .top-right { top: 0; right: 0; border-width: 5px 5px 0 0; }
+    .bottom-left { bottom: 0; left: 0; border-width: 0 0 5px 5px; }
+    .bottom-right { bottom: 0; right: 0; border-width: 0 5px 5px 0; }
 
     /* Linea Laser di Scansione */
     .scan-line {
@@ -106,7 +89,7 @@
 </head>
 <body>
 
-  <!-- Overlay UI con angoli bianchi -->
+  <!-- Overlay UI Mirino -->
   <div id="scanner-overlay">
     <div class="scan-frame" id="scan-frame">
       <div class="corner top-left"></div>
@@ -115,62 +98,64 @@
       <div class="corner bottom-right"></div>
       <div class="scan-line" id="scan-line"></div>
     </div>
-    <div class="instruction-text" id="instruction-text">Inquadra un logo sul catalogo</div>
+    <div class="instruction-text" id="instruction-text">Inquadra i loghi sul catalogo</div>
   </div>
 
   <a-scene 
     mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiError: no; uiScanning: no;" 
     embedded 
     color-space="sRGB" 
-    renderer="colorManagement: true, physicallyCorrectLights: true" 
+    renderer="colorManagement: true, physicallyCorrectLights: true; alpha: true;" 
     vr-mode-ui="enabled: false" 
     device-orientation-permission-ui="enabled: false">
 
-    <!-- Caricamento delle immagini dei loghi locali -->
-    <a-assets>
-      <img id="logo-forpin" src="./forpin.png">
-      <img id="logo-confindustria" src="./confindustria.png">
+    <!-- Caricamento delle immagini dei due loghi -->
+    <a-assets timeout="10000">
+      <img id="logo-forpin" src="./forpin.png" crossorigin="anonymous">
+      <img id="logo-confindustria" src="./confindustria.png" crossorigin="anonymous">
     </a-assets>
 
     <a-camera position="0 0 0" look-controls="enabled: false" cursor="fuse: false; rayOrigin: mouse;" raycaster="far: 10000; objects: .clickable"></a-camera>
 
-    <!-- TARGET 0: FORPIN -->
-    <a-entity id="target-forpin" mindar-image-target="targetIndex: 0">
+    <!-- UNICO TARGET (Inquadratura del catalogo) -->
+    <a-entity id="target-catalogo" mindar-image-target="targetIndex: 0">
+      
+      <!-- LOGO 1: FORPIN (Posizionato in alto) -->
       <a-plane 
         class="clickable" 
-        position="0 0 0.1" 
-        width="1" 
-        height="0.4" 
-        material="src: #logo-forpin; transparent: true; alphaTest: 0.5;" 
-        animation="property: position; to: 0 0.05 0.2; dir: alternate; dur: 1500; loop: true;"
+        position="0 0.25 0.1" 
+        width="0.8" 
+        height="0.35" 
+        material="src: #logo-forpin; transparent: true; alphaTest: 0.1; shader: flat;" 
+        animation="property: position; to: 0 0.28 0.18; dir: alternate; dur: 1500; loop: true;"
         redirect-on-click="url: https://www.confindustria.pc.it/">
       </a-plane>
-    </a-entity>
 
-    <!-- TARGET 1: CONFINDUSTRIA PIACENZA -->
-    <a-entity id="target-confindustria" mindar-image-target="targetIndex: 1">
+      <!-- LOGO 2: CONFINDUSTRIA PIACENZA (Posizionato in basso) -->
       <a-plane 
         class="clickable" 
-        position="0 0 0.1" 
-        width="1" 
-        height="0.5" 
-        material="src: #logo-confindustria; transparent: true; alphaTest: 0.5;" 
-        animation="property: position; to: 0 0.05 0.2; dir: alternate; dur: 1500; loop: true;"
+        position="0 -0.25 0.1" 
+        width="0.8" 
+        height="0.35" 
+        material="src: #logo-confindustria; transparent: true; alphaTest: 0.1; shader: flat;" 
+        animation="property: position; to: 0 -0.22 0.18; dir: alternate; dur: 1500; loop: true;"
         redirect-on-click="url: https://www.confindustria.pc.it/">
       </a-plane>
+
     </a-entity>
 
   </a-scene>
 
   <script>
-    // Gestore del click per reindirizzamento al sito web
+    // Gestore click sui singoli loghi
     AFRAME.registerComponent('redirect-on-click', {
       schema: {
         url: { type: 'string', default: '' }
       },
       init: function () {
         const data = this.data;
-        this.el.addEventListener('click', function () {
+        this.el.addEventListener('click', function (evt) {
+          evt.stopPropagation();
           if (data.url) {
             window.location.href = data.url;
           }
@@ -178,29 +163,20 @@
       }
     });
 
-    // Controllo elementi visivi all'inquadratura
     document.addEventListener("DOMContentLoaded", () => {
       const scanLine = document.getElementById('scan-line');
       const instructionText = document.getElementById('instruction-text');
+      const targetCatalogo = document.getElementById('target-catalogo');
 
-      const targetForpin = document.getElementById('target-forpin');
-      const targetConfindustria = document.getElementById('target-confindustria');
-
-      const showTargetUI = () => {
+      targetCatalogo.addEventListener("targetFound", () => {
         scanLine.classList.add('scanning-hidden');
-        instructionText.innerText = "Tocca il logo per aprire il sito!";
-      };
+        instructionText.innerText = "Tocca un logo per aprire la pagina!";
+      });
 
-      const hideTargetUI = () => {
+      targetCatalogo.addEventListener("targetLost", () => {
         scanLine.classList.remove('scanning-hidden');
-        instructionText.innerText = "Inquadra un logo sul catalogo";
-      };
-
-      targetForpin.addEventListener("targetFound", showTargetUI);
-      targetForpin.addEventListener("targetLost", hideTargetUI);
-
-      targetConfindustria.addEventListener("targetFound", showTargetUI);
-      targetConfindustria.addEventListener("targetLost", hideTargetUI);
+        instructionText.innerText = "Inquadra i loghi sul catalogo";
+      });
     });
   </script>
 </body>
