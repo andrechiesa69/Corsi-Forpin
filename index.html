@@ -19,6 +19,7 @@
       overflow: hidden;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       -webkit-tap-highlight-color: transparent;
+      touch-action: none;
     }
 
     /* Interfaccia Overlay Mirino */
@@ -116,99 +117,103 @@
       <img id="logo-confindustria" src="./confindustria.png" crossorigin="anonymous">
     </a-assets>
 
-    <!-- Raycaster ad alta reattività per intercettare i tocchi 3D immediati -->
-    <a-camera 
-      position="0 0 0" 
-      look-controls="enabled: false" 
-      cursor="fuse: false; rayOrigin: mouse;" 
-      raycaster="far: 1000; interval: 20; objects: .clickable">
-    </a-camera>
+    <!-- Fotocamera senza raycaster pesante -->
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
     <!-- TARGET UNICO (Catalogo) -->
     <a-entity id="target-catalogo" mindar-image-target="targetIndex: 0">
       
       <!-- LOGO 1: FORPIN 3D -->
-      <a-entity position="-0.05 0.22 0.1">
-        <!-- Piano Visibile Logo -->
-        <a-plane 
-          width="0.8" 
-          height="0.3" 
-          material="src: #logo-forpin; transparent: true; alphaTest: 0.1; shader: flat;" 
-          animation="property: position; to: 0 0 0.08; dir: alternate; dur: 1500; loop: true;">
-        </a-plane>
-        <!-- Hitbox Cliccabile Ampliata -->
-        <a-plane 
-          class="clickable" 
-          position="0 0 0.09" 
-          width="1.0" 
-          height="0.45" 
-          material="opacity: 0.0; transparent: true;" 
-          fast-click="url: https://www.forpin.it/">
-        </a-plane>
-      </a-entity>
+      <a-plane 
+        id="plane-forpin"
+        class="clickable-target"
+        data-url="https://www.forpin.it/"
+        position="-0.05 0.22 0.1" 
+        width="0.9" 
+        height="0.35" 
+        material="src: #logo-forpin; transparent: true; alphaTest: 0.1; shader: flat;" 
+        animation="property: position; to: -0.05 0.22 0.18; dir: alternate; dur: 1500; loop: true;">
+      </a-plane>
 
       <!-- LOGO 2: CONFINDUSTRIA PIACENZA 3D -->
-      <a-entity position="-0.05 -0.18 0.1">
-        <!-- Piano Visibile Logo -->
-        <a-plane 
-          width="0.8" 
-          height="0.3" 
-          material="src: #logo-confindustria; transparent: true; alphaTest: 0.1; shader: flat;" 
-          animation="property: position; to: 0 0 0.08; dir: alternate; dur: 1500; loop: true;">
-        </a-plane>
-        <!-- Hitbox Cliccabile Ampliata -->
-        <a-plane 
-          class="clickable" 
-          position="0 0 0.09" 
-          width="1.0" 
-          height="0.45" 
-          material="opacity: 0.0; transparent: true;" 
-          fast-click="url: https://www.confindustria.pc.it/">
-        </a-plane>
-      </a-entity>
+      <a-plane 
+        id="plane-confindustria"
+        class="clickable-target"
+        data-url="https://www.confindustria.pc.it/"
+        position="-0.05 -0.18 0.1" 
+        width="0.9" 
+        height="0.35" 
+        material="src: #logo-confindustria; transparent: true; alphaTest: 0.1; shader: flat;" 
+        animation="property: position; to: -0.05 -0.18 0.18; dir: alternate; dur: 1500; loop: true;">
+      </a-plane>
 
     </a-entity>
 
   </a-scene>
 
   <script>
-    // Componente per catturare il tocco 3D in modo reattivo
-    AFRAME.registerComponent('fast-click', {
-      schema: {
-        url: { type: 'string', default: '' }
-      },
-      init: function () {
-        const url = this.data.url;
-        const el = this.el;
-
-        const openUrl = () => {
-          if (url) {
-            window.location.href = url;
-          }
-        };
-
-        // Evento di click diretto dal Raycaster
-        el.addEventListener('click', openUrl);
-        
-        // Risposta immediata al tocco per schermi touch (iOS/Android)
-        el.addEventListener('mousedown', openUrl);
-      }
-    });
-
     document.addEventListener("DOMContentLoaded", () => {
       const scanLine = document.getElementById('scan-line');
       const instructionText = document.getElementById('instruction-text');
       const targetCatalogo = document.getElementById('target-catalogo');
 
+      let targetVisible = false;
+
       targetCatalogo.addEventListener("targetFound", () => {
+        targetVisible = true;
         scanLine.classList.add('scanning-hidden');
-        instructionText.innerText = "Tocca un logo 3D per aprire la pagina!";
+        instructionText.innerText = "Tocca un logo per aprire la pagina!";
       });
 
       targetCatalogo.addEventListener("targetLost", () => {
+        targetVisible = false;
         scanLine.classList.remove('scanning-hidden');
         instructionText.innerText = "Inquadra i loghi sul catalogo";
       });
+
+      // RILEVAMENTO TOCCO SOFFICE ISTANTANEO
+      const sceneEl = document.querySelector('a-scene');
+
+      const handleUltraFastTouch = (e) => {
+        if (!targetVisible) return;
+
+        // Recupera le coordinate del tocco (supporta sia touch che mouse)
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+        // Converti le coordinate in spazio normalizzato THREE.js (-1 to +1)
+        const camera = sceneEl.camera;
+        if (!camera) return;
+
+        const mouse = new THREE.Vector2();
+        mouse.x = (clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouse, camera);
+
+        // Controlla gli oggetti 3D
+        const targets = Array.from(document.querySelectorAll('.clickable-target')).map(el => el.object3D);
+        const intersects = raycaster.intersectObjects(targets, true);
+
+        if (intersects.length > 0) {
+          // Trova il rispettivo elemento HTML per leggere l'URL
+          let hitObject = intersects[0].object;
+          while (hitObject && !hitObject.el) {
+            hitObject = hitObject.parent;
+          }
+
+          if (hitObject && hitObject.el) {
+            const url = hitObject.el.getAttribute('data-url');
+            if (url) {
+              window.location.href = url;
+            }
+          }
+        }
+      };
+
+      // Aggancio agli eventi primari al contatto del dito
+      window.addEventListener('pointerdown', handleUltraFastTouch, { passive: true });
     });
   </script>
 </body>
