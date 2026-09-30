@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Realtà Aumentata Catalogo</title>
+
+  <!-- A-Frame Library -->
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <!-- MindAR per A-Frame -->
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    /* Interfaccia Overlay di Scansione */
+    #scanner-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* Mirino di scansione centrale */
+    .scan-frame {
+      width: 70vw;
+      height: 70vw;
+      max-width: 320px;
+      max-height: 320px;
+      border: 2px dashed rgba(255, 255, 255, 0.6);
+      border-radius: 16px;
+      position: relative;
+      box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+    }
+
+    /* Linea di Scansione Laser Animata (Sale e Scende) */
+    .scan-line {
+      position: absolute;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, rgba(0,255,150,0) 0%, rgba(0,255,150,1) 50%, rgba(0,255,150,0) 100%);
+      box-shadow: 0 0 12px #00ff96;
+      animation: scanAnim 2.5s ease-in-out infinite alternate;
+    }
+
+    @keyframes scanAnim {
+      0% { top: 0%; }
+      100% { top: 98%; }
+    }
+
+    .instruction-text {
+      color: #ffffff;
+      margin-top: 20px;
+      font-size: 15px;
+      font-weight: 500;
+      text-align: center;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 8px 16px;
+      border-radius: 20px;
+      backdrop-filter: blur(4px);
+    }
+
+    /* Nasconde la linea laser quando il target viene rilevato */
+    .scanning-hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- UI Overlay: Mirino e Animazione Laser -->
+  <div id="scanner-overlay">
+    <div class="scan-frame" id="scan-frame">
+      <div class="scan-line" id="scan-line"></div>
+    </div>
+    <div class="instruction-text" id="instruction-text">Inquadra un logo sul catalogo</div>
+  </div>
+
+  <!-- Scena AR -->
+  <!-- 
+    'targets.mind' deve trovarsi nella stessa cartella su GitHub.
+    'uiScanning: #example-scanning-overlay' disabilita lo splash di default di MindAR.
+  -->
+  <a-scene 
+    mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiError: no; uiScanning: no;" 
+    embedded 
+    color-space="sRGB" 
+    renderer="colorManagement: true, physicallyCorrectLights: true" 
+    vr-mode-ui="enabled: false" 
+    device-orientation-permission-ui="enabled: false">
+
+    <a-camera position="0 0 0" look-controls="enabled: false" cursor="fuse: false; rayOrigin: mouse;" raycaster="far: 10000; objects: .clickable"></a-camera>
+
+    <!-- TARGET 0: FORPIN -->
+    <a-entity id="target-forpin" mindar-image-target="targetIndex: 0">
+      <!-- 
+        Disegno Logo 3D 3D/Pannello Interattivo.
+        Se possiedi modelli 3D (.gltf / .glb), puoi sostituire <a-plane> con:
+        <a-gltf-model src="./forpin.glb" position="0 0 0" scale="0.5 0.5 0.5" class="clickable" redirect-on-click="url: https://www.confindustria.pc.it/"></a-gltf-model>
+      -->
+      <a-plane 
+        class="clickable" 
+        position="0 0 0.1" 
+        width="1" 
+        height="0.6" 
+        material="src: #img-forpin; opacity: 0.95; transparent: true; side: double;" 
+        animation="property: position; to: 0 0.05 0.15; dir: alternate; dur: 1500; loop: true; easing: easeInOutSine"
+        redirect-on-click="url: https://www.confindustria.pc.it/">
+      </a-plane>
+    </a-entity>
+
+    <!-- TARGET 1: CONFINDUSTRIA PIACENZA -->
+    <a-entity id="target-confindustria" mindar-image-target="targetIndex: 1">
+      <a-plane 
+        class="clickable" 
+        position="0 0 0.1" 
+        width="1" 
+        height="0.6" 
+        material="src: #img-confindustria; opacity: 0.95; transparent: true; side: double;" 
+        animation="property: position; to: 0 0.05 0.15; dir: alternate; dur: 1500; loop: true; easing: easeInOutSine"
+        redirect-on-click="url: https://www.confindustria.pc.it/">
+      </a-plane>
+    </a-entity>
+
+    <!-- Asset immagini utilizzate come texture per la rappresentazione 3D -->
+    <a-assets>
+      <img id="img-forpin" src="https://raw.githubusercontent.com/hiukim/mind-ar-js/main/examples/image-tracking/assets/card-example/card.png" crossorigin="anonymous">
+      <img id="img-confindustria" src="https://raw.githubusercontent.com/hiukim/mind-ar-js/main/examples/image-tracking/assets/card-example/card.png" crossorigin="anonymous">
+    </a-assets>
+
+  </a-scene>
+
+  <script>
+    // Componente personalizzato per la gestione del click e del reindirizzamento URL
+    AFRAME.registerComponent('redirect-on-click', {
+      schema: {
+        url: { type: 'string', default: '' }
+      },
+      init: function () {
+        const data = this.data;
+        this.el.addEventListener('click', function () {
+          if (data.url) {
+            window.location.href = data.url;
+          }
+        });
+      }
+    });
+
+    // Gestione dell'interfaccia UI durante il riconoscimento e il tracciamento
+    document.addEventListener("DOMContentLoaded", () => {
+      const scanLine = document.getElementById('scan-line');
+      const scanFrame = document.getElementById('scan-frame');
+      const instructionText = document.getElementById('instruction-text');
+
+      const targetForpin = document.getElementById('target-forpin');
+      const targetConfindustria = document.getElementById('target-confindustria');
+
+      const showTargetUI = () => {
+        scanLine.classList.add('scanning-hidden');
+        scanFrame.style.borderColor = "rgba(0, 255, 150, 0.8)";
+        instructionText.innerText = "Tocca il logo per aprire il sito";
+      };
+
+      const hideTargetUI = () => {
+        scanLine.classList.remove('scanning-hidden');
+        scanFrame.style.borderColor = "rgba(255, 255, 255, 0.6)";
+        instructionText.innerText = "Inquadra un logo sul catalogo";
+      };
+
+      // Eventi di tracciamento Target 0 (Forpin)
+      targetForpin.addEventListener("targetFound", showTargetUI);
+      targetForpin.addEventListener("targetLost", hideTargetUI);
+
+      // Eventi di tracciamento Target 1 (Confindustria Piacenza)
+      targetConfindustria.addEventListener("targetFound", showTargetUI);
+      targetConfindustria.addEventListener("targetLost", hideTargetUI);
+    });
+  </script>
+</body>
+</html>
