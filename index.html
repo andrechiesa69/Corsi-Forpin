@@ -18,9 +18,10 @@
       height: 100%;
       overflow: hidden;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    /* Interfaccia Overlay */
+    /* Interfaccia Overlay Mirino */
     #scanner-overlay {
       position: absolute;
       top: 0;
@@ -115,42 +116,64 @@
       <img id="logo-confindustria" src="./confindustria.png" crossorigin="anonymous">
     </a-assets>
 
-    <a-camera position="0 0 0" look-controls="enabled: false" cursor="fuse: false; rayOrigin: mouse;" raycaster="far: 10000; objects: .clickable"></a-camera>
+    <!-- Raycaster ad alta reattività per intercettare i tocchi 3D immediati -->
+    <a-camera 
+      position="0 0 0" 
+      look-controls="enabled: false" 
+      cursor="fuse: false; rayOrigin: mouse;" 
+      raycaster="far: 1000; interval: 20; objects: .clickable">
+    </a-camera>
 
-    <!-- TARGET UNICO (Inquadratura del catalogo) -->
+    <!-- TARGET UNICO (Catalogo) -->
     <a-entity id="target-catalogo" mindar-image-target="targetIndex: 0">
       
-      <!-- LOGO 1: FORPIN (Posizionato in alto) -->
-      <a-plane 
-        id="btn-forpin"
-        class="clickable" 
-        position="-0.05 0.22 0.1" 
-        width="0.8" 
-        height="0.3" 
-        material="src: #logo-forpin; transparent: true; alphaTest: 0.1; shader: flat;" 
-        animation="property: position; to: -0.05 0.22 0.18; dir: alternate; dur: 1500; loop: true;"
-        instant-redirect="url: https://www.forpin.it/">
-      </a-plane>
+      <!-- LOGO 1: FORPIN 3D -->
+      <a-entity position="-0.05 0.22 0.1">
+        <!-- Piano Visibile Logo -->
+        <a-plane 
+          width="0.8" 
+          height="0.3" 
+          material="src: #logo-forpin; transparent: true; alphaTest: 0.1; shader: flat;" 
+          animation="property: position; to: 0 0 0.08; dir: alternate; dur: 1500; loop: true;">
+        </a-plane>
+        <!-- Hitbox Cliccabile Ampliata -->
+        <a-plane 
+          class="clickable" 
+          position="0 0 0.09" 
+          width="1.0" 
+          height="0.45" 
+          material="opacity: 0.0; transparent: true;" 
+          fast-click="url: https://www.forpin.it/">
+        </a-plane>
+      </a-entity>
 
-      <!-- LOGO 2: CONFINDUSTRIA PIACENZA (Posizionato in basso) -->
-      <a-plane 
-        id="btn-confindustria"
-        class="clickable" 
-        position="-0.05 -0.18 0.1" 
-        width="0.8" 
-        height="0.3" 
-        material="src: #logo-confindustria; transparent: true; alphaTest: 0.1; shader: flat;" 
-        animation="property: position; to: -0.05 -0.18 0.18; dir: alternate; dur: 1500; loop: true;"
-        instant-redirect="url: https://www.confindustria.pc.it/">
-      </a-plane>
+      <!-- LOGO 2: CONFINDUSTRIA PIACENZA 3D -->
+      <a-entity position="-0.05 -0.18 0.1">
+        <!-- Piano Visibile Logo -->
+        <a-plane 
+          width="0.8" 
+          height="0.3" 
+          material="src: #logo-confindustria; transparent: true; alphaTest: 0.1; shader: flat;" 
+          animation="property: position; to: 0 0 0.08; dir: alternate; dur: 1500; loop: true;">
+        </a-plane>
+        <!-- Hitbox Cliccabile Ampliata -->
+        <a-plane 
+          class="clickable" 
+          position="0 0 0.09" 
+          width="1.0" 
+          height="0.45" 
+          material="opacity: 0.0; transparent: true;" 
+          fast-click="url: https://www.confindustria.pc.it/">
+        </a-plane>
+      </a-entity>
 
     </a-entity>
 
   </a-scene>
 
   <script>
-    // Componente per gestione immediata del tocco su iOS/Android
-    AFRAME.registerComponent('instant-redirect', {
+    // Componente per catturare il tocco 3D in modo reattivo
+    AFRAME.registerComponent('fast-click', {
       schema: {
         url: { type: 'string', default: '' }
       },
@@ -158,19 +181,17 @@
         const url = this.data.url;
         const el = this.el;
 
-        const openPage = (e) => {
-          if (e) {
-            e.preventDefault();
-            e.stopPropagation();
-          }
+        const openUrl = () => {
           if (url) {
             window.location.href = url;
           }
         };
 
-        // Aggancio immediato sia per touch che per click del mouse
-        el.addEventListener('touchstart', openPage, { passive: false });
-        el.addEventListener('click', openPage);
+        // Evento di click diretto dal Raycaster
+        el.addEventListener('click', openUrl);
+        
+        // Risposta immediata al tocco per schermi touch (iOS/Android)
+        el.addEventListener('mousedown', openUrl);
       }
     });
 
@@ -181,7 +202,7 @@
 
       targetCatalogo.addEventListener("targetFound", () => {
         scanLine.classList.add('scanning-hidden');
-        instructionText.innerText = "Tocca un logo per aprire la pagina!";
+        instructionText.innerText = "Tocca un logo 3D per aprire la pagina!";
       });
 
       targetCatalogo.addEventListener("targetLost", () => {
