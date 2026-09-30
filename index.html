@@ -109,7 +109,7 @@
     vr-mode-ui="enabled: false" 
     device-orientation-permission-ui="enabled: false">
 
-    <!-- Caricamento delle immagini dei due loghi -->
+    <!-- Precaricamento Immagini Loghi -->
     <a-assets timeout="10000">
       <img id="logo-forpin" src="./forpin.png" crossorigin="anonymous">
       <img id="logo-confindustria" src="./confindustria.png" crossorigin="anonymous">
@@ -117,28 +117,28 @@
 
     <a-camera position="0 0 0" look-controls="enabled: false" cursor="fuse: false; rayOrigin: mouse;" raycaster="far: 10000; objects: .clickable"></a-camera>
 
-    <!-- UNICO TARGET (Inquadratura del catalogo) -->
+    <!-- TARGET UNICO (Inquadratura del catalogo) -->
     <a-entity id="target-catalogo" mindar-image-target="targetIndex: 0">
       
-      <!-- LOGO 1: FORPIN (Posizionato in alto) -->
+      <!-- LOGO 1: FORPIN (Sopra il logo Forpin cartaceo) -->
       <a-plane 
         class="clickable" 
-        position="0 0.25 0.1" 
-        width="0.8" 
-        height="0.35" 
+        position="-0.05 0.15 0.05" 
+        width="0.75" 
+        height="0.25" 
         material="src: #logo-forpin; transparent: true; alphaTest: 0.1; shader: flat;" 
-        animation="property: position; to: 0 0.28 0.18; dir: alternate; dur: 1500; loop: true;"
-        redirect-on-click="url: https://www.confindustria.pc.it/">
+        animation="property: position; to: -0.05 0.15 0.12; dir: alternate; dur: 1500; loop: true;"
+        redirect-on-click="url: https://www.forpin.it/">
       </a-plane>
 
-      <!-- LOGO 2: CONFINDUSTRIA PIACENZA (Posizionato in basso) -->
+      <!-- LOGO 2: CONFINDUSTRIA PIACENZA (Sopra il logo Confindustria cartaceo) -->
       <a-plane 
         class="clickable" 
-        position="0 -0.25 0.1" 
-        width="0.8" 
-        height="0.35" 
+        position="-0.05 -0.15 0.05" 
+        width="0.75" 
+        height="0.25" 
         material="src: #logo-confindustria; transparent: true; alphaTest: 0.1; shader: flat;" 
-        animation="property: position; to: 0 -0.22 0.18; dir: alternate; dur: 1500; loop: true;"
+        animation="property: position; to: -0.05 -0.15 0.12; dir: alternate; dur: 1500; loop: true;"
         redirect-on-click="url: https://www.confindustria.pc.it/">
       </a-plane>
 
@@ -147,7 +147,7 @@
   </a-scene>
 
   <script>
-    // Gestore click sui singoli loghi
+    // Gestore del click con reindirizzamento ai singoli link dedicati
     AFRAME.registerComponent('redirect-on-click', {
       schema: {
         url: { type: 'string', default: '' }
