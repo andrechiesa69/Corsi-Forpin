@@ -35,7 +35,7 @@
       align-items: center;
     }
 
-    /* Mirino a 4 angoli bianchi (stile modello scansione) */
+    /* Mirino a 4 angoli bianchi */
     .scan-frame {
       width: 75vw;
       height: 50vw;
@@ -94,7 +94,7 @@
       font-size: 14px;
       font-weight: 500;
       text-align: center;
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0, 0, 0, 0.8);
       padding: 10px 20px;
       border-radius: 20px;
     }
@@ -126,6 +126,12 @@
     vr-mode-ui="enabled: false" 
     device-orientation-permission-ui="enabled: false">
 
+    <!-- Caricamento delle immagini dei loghi locali -->
+    <a-assets>
+      <img id="logo-forpin" src="./forpin.png">
+      <img id="logo-confindustria" src="./confindustria.png">
+    </a-assets>
+
     <a-camera position="0 0 0" look-controls="enabled: false" cursor="fuse: false; rayOrigin: mouse;" raycaster="far: 10000; objects: .clickable"></a-camera>
 
     <!-- TARGET 0: FORPIN -->
@@ -134,11 +140,10 @@
         class="clickable" 
         position="0 0 0.1" 
         width="1" 
-        height="0.5" 
-        material="color: #004488; opacity: 0.9;" 
-        animation="property: position; to: 0 0.05 0.15; dir: alternate; dur: 1500; loop: true;"
+        height="0.4" 
+        material="src: #logo-forpin; transparent: true; alphaTest: 0.5;" 
+        animation="property: position; to: 0 0.05 0.2; dir: alternate; dur: 1500; loop: true;"
         redirect-on-click="url: https://www.confindustria.pc.it/">
-        <a-text value="FORPIN\n(Tocca per aprire)" align="center" color="#FFFFFF" width="3" position="0 0 0.01"></a-text>
       </a-plane>
     </a-entity>
 
@@ -149,16 +154,16 @@
         position="0 0 0.1" 
         width="1" 
         height="0.5" 
-        material="color: #002244; opacity: 0.9;" 
-        animation="property: position; to: 0 0.05 0.15; dir: alternate; dur: 1500; loop: true;"
+        material="src: #logo-confindustria; transparent: true; alphaTest: 0.5;" 
+        animation="property: position; to: 0 0.05 0.2; dir: alternate; dur: 1500; loop: true;"
         redirect-on-click="url: https://www.confindustria.pc.it/">
-        <a-text value="CONFINDUSTRIA PIACENZA\n(Tocca per aprire)" align="center" color="#FFFFFF" width="2.5" position="0 0 0.01"></a-text>
       </a-plane>
     </a-entity>
 
   </a-scene>
 
   <script>
+    // Gestore del click per reindirizzamento al sito web
     AFRAME.registerComponent('redirect-on-click', {
       schema: {
         url: { type: 'string', default: '' }
@@ -173,8 +178,8 @@
       }
     });
 
+    // Controllo elementi visivi all'inquadratura
     document.addEventListener("DOMContentLoaded", () => {
-      const scanOverlay = document.getElementById('scanner-overlay');
       const scanLine = document.getElementById('scan-line');
       const instructionText = document.getElementById('instruction-text');
 
@@ -183,7 +188,7 @@
 
       const showTargetUI = () => {
         scanLine.classList.add('scanning-hidden');
-        instructionText.innerText = "Tocca il box per aprire il sito!";
+        instructionText.innerText = "Tocca il logo per aprire il sito!";
       };
 
       const hideTargetUI = () => {
