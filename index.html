@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Forpin - Realtà Aumentata</title>
+
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+  <style>
+    html, body {
+      margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;
+    }
+
+    /* ---- Mirino di scansione con angoli bianchi ---- */
+    #scanner-overlay {
+      position: fixed; inset: 0; z-index: 10; pointer-events: none;
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+    }
+    .scan-frame { width: 75vw; height: 50vw; max-width: 340px; max-height: 230px; position: relative; }
+    .corner { position: absolute; width: 30px; height: 30px; border-color: #fff; border-style: solid; }
+    .top-left     { top: 0;    left: 0;  border-width: 5px 0 0 5px; }
+    .top-right    { top: 0;    right: 0; border-width: 5px 5px 0 0; }
+    .bottom-left  { bottom: 0; left: 0;  border-width: 0 0 5px 5px; }
+    .bottom-right { bottom: 0; right: 0; border-width: 0 5px 5px 0; }
+    .scan-line {
+      position: absolute; width: 100%; height: 2px; background: #fff; box-shadow: 0 0 8px #fff;
+      animation: scanAnim 2s ease-in-out infinite alternate;
+    }
+    @keyframes scanAnim { 0% { top: 5%; } 100% { top: 95%; } }
+    .hidden { display: none !important; }
+
+    #instruction-text {
+      position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+      z-index: 20; pointer-events: none; white-space: nowrap; max-width: 92vw;
+      color: #fff; font-size: 14px; font-weight: 600; text-align: center;
+      background: rgba(0,0,0,0.8); padding: 10px 20px; border-radius: 20px;
+    }
+
+    /* ---- Loghi fissi sullo schermo se il catalogo esce dall'inquadratura ---- */
+    #sticky-logos {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      z-index: 30; display: none; flex-direction: column; align-items: center; gap: 14px;
+      padding: 18px 22px; background: rgba(255,255,255,0.94);
+      border-radius: 22px; box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+    }
+    #sticky-logos.show { display: flex; }
+    #sticky-logos a { display: block; padding: 8px; -webkit-tap-highlight-color: transparent; }
+    #sticky-logos img { display: block; max-width: 62vw; max-height: 90px; pointer-events: none; }
+  </style>
+
+  <script>
+    AFRAME.registerComponent('ar-logos', {
+      init: function () {
+        const sceneEl = this.el;
+        const target = document.getElementById('target-catalogo');
+        const frame = document.getElementById('scan-frame');
+        const text = document.getElementById('instruction-text');
+        const sticky = document.getElementById('sticky-logos');
+
+        const ENABLE_STICKY = true;   // false = nessuna barra quando perdi il catalogo
+        const HOLD_MS = 30000;        // durata della barra (30 secondi)
+        const LOST_DELAY = 600;       // ignora perdite brevi del target (ms)
+        const SNAP_PX = 140;          // tocco "calamita": distanza massima dal logo (pixel)
+
+        let found = false, lostTimer = null, hideTimer = null;
+
+        target.addEventListener('targetFound', () => {
+          found = true;
+          clearTimeout(lostTimer); clearTimeout(hideTimer);
+          frame.classList.add('hidden');
+          sticky.classList.remove('show');
+          text.innerText = "Tocca un logo per aprire il sito";
+        });
+
+        target.addEventListener('targetLost', () => {
+          clearTimeout(lostTimer);
+          lostTimer = setTimeout(() => {
+            found = false;
+            if (ENABLE_STICKY) {
+              sticky.classList.add('show');
+              text.innerText = "Tocca un logo (restano 30 secondi)";
+              clearTimeout(hideTimer);
+              hideTimer = setTimeout(() => {
+                sticky.classList.remove('show');
+                frame.classList.remove('hidden');
+                text.innerText = "Inquadra i loghi sul catalogo";
+              }, HOLD_MS);
+            } else {
+              frame.classList.remove('hidden');
+              text.innerText = "Inquadra i loghi sul catalogo";
+            }
+          }, LOST_DELAY);
+        });
+
+        // ---- Tocco sui loghi AR: raycast + "calamita" sul logo più vicino ----
+        const hitEls = () => Array.from(document.querySelectorAll('.hit'));
+
+        const handleTap = (e) => {
+          if (!found) return;
+          if (e.target.closest && e.target.closest('#sticky-logos')) return;
+          const camera = sceneEl.camera;
+          if (!camera) return;
+
+          const x = e.clientX, y = e.clientY;
+          const ndc = new THREE.Vector2((x / window.innerWidth) * 2 - 1, -(y / window.innerHeight) * 2 + 1);
+          const raycaster = new THREE.Raycaster();
+          raycaster.setFromCamera(ndc, camera);
+
+          const els = hitEls();
+          const hits = raycaster.intersectObjects(els.map(el => el.object3D), true);
+          let url = null;
+
+          if (hits.length > 0) {
+            let el = hits[0].object.el;
+            while (el && !el.classList.contains('hit')) el = el.parentElement;
+            if (el) url = el.dataset.url;
+          } else {
+            // Nessun colpo diretto: scegli il logo più vicino al dito (entro SNAP_PX)
+            let best = null, bestD = Infinity;
+            els.forEach(el => {
+              const v = new THREE.Vector3();
+              el.object3D.getWorldPosition(v);
+              v.project(camera);
+              const sx = (v.x + 1) / 2 * window.innerWidth;
+              const sy = (1 - v.y) / 2 * window.innerHeight;
+              const d = Math.hypot(sx - x, sy - y);
+              if (d < bestD) { bestD = d; best = el; }
+            });
+            if (best && bestD <= SNAP_PX) url = best.dataset.url;
+          }
+          if (url) window.location.href = url;
+        };
+
+        sceneEl.addEventListener('loaded', () => {
+          window.addEventListener('pointerdown', handleTap);
+        });
+      }
+    });
+  </script>
+</head>
+<body>
+
+  <!-- Mirino di scansione -->
+  <div id="scanner-overlay">
+    <div class="scan-frame" id="scan-frame">
+      <div class="corner top-left"></div>
+      <div class="corner top-right"></div>
+      <div class="corner bottom-left"></div>
+      <div class="corner bottom-right"></div>
+      <div class="scan-line"></div>
+    </div>
+  </div>
+  <div id="instruction-text">Inquadra i loghi sul catalogo</div>
+
+  <!-- Loghi fissi sullo schermo (compaiono se il catalogo esce dall'inquadratura) -->
+  <div id="sticky-logos">
+    <a href="https://forpin.it/"><img src="./forpin.png" alt="Forpin"></a>
+    <a href="https://www.confindustria.pc.it/"><img src="./confindustria.png" alt="Confindustria Piacenza"></a>
+  </div>
+
+  <a-scene
+    ar-logos
+    mindar-image="imageTargetSrc: ./targets.mind; uiScanning: no; filterMinCF: 0.0001; filterBeta: 0.001; missTolerance: 15; warmupTolerance: 5;"
+    color-space="sRGB"
+    renderer="colorManagement: true, physicallyCorrectLights"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false">
+
+    <a-assets>
+      <img id="logo-forpin" src="./forpin.png">
+      <img id="logo-confindustria" src="./confindustria.png">
+    </a-assets>
+
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+    <!-- Target (catalogo): larghezza 1, altezza ~0.537 -->
+    <a-entity id="target-catalogo" mindar-image-target="targetIndex: 0">
+
+      <!-- FORPIN (visibile) -->
+      <a-plane position="0 0.13 0.08" width="0.7" height="0.175"
+               material="src: #logo-forpin; transparent: true; alphaTest: 0.05; shader: flat"
+               animation="property: position; to: 0 0.13 0.14; dir: alternate; dur: 1500; easing: easeInOutSine; loop: true">
+      </a-plane>
+      <!-- FORPIN (area di tocco più grande, invisibile) -->
+      <a-plane class="hit" data-url="https://forpin.it/"
+               position="0 0.13 0.1" width="1.0" height="0.32"
+               material="transparent: true; opacity: 0; side: double">
+      </a-plane>
+
+      <!-- CONFINDUSTRIA (visibile) -->
+      <a-plane position="0 -0.13 0.08" width="0.4" height="0.215"
+               material="src: #logo-confindustria; transparent: true; alphaTest: 0.05; shader: flat"
+               animation="property: position; to: 0 -0.13 0.14; dir: alternate; dur: 1500; easing: easeInOutSine; loop: true">
+      </a-plane>
+      <!-- CONFINDUSTRIA (area di tocco più grande, invisibile) -->
+      <a-plane class="hit" data-url="https://www.confindustria.pc.it/"
+               position="0 -0.13 0.1" width="1.0" height="0.32"
+               material="transparent: true; opacity: 0; side: double">
+      </a-plane>
+
+    </a-entity>
+
+  </a-scene>
+
+</body>
+</html>
